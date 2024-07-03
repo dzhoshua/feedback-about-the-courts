@@ -1,6 +1,7 @@
 import scrapy
 import time
 import json
+import os
 
 
 class GetCourtsInfoSpider(scrapy.Spider):
@@ -13,25 +14,22 @@ class GetCourtsInfoSpider(scrapy.Spider):
         for url in self.start_urls:
             yield scrapy.Request(
                 url=url,
-                callback=self.parse,
-                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                callback=self.parse
             )
 
     def parse(self, response, **kwargs):
         # считываем названия судов
         courts_names = None
+        path = "/home/master/kozitsina/feedback-about-the-courts/reviews/data/courts_names_emails.json"
         try:
-            path = "reviews/data/courts_names_emails.json"
             with open(path, 'r', encoding='utf-8') as f:
                 courts_names = json.load(f)
         except FileNotFoundError:
             print("cant open file")
 
         if courts_names is not None:
-            names = [courts_names[0]]
             # проходимся по каждому суду
-            for court in names:
-                # courts_names:
+            for court in courts_names:
                 name = court['name']
                 time.sleep(2.5)
 
@@ -39,8 +37,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 yield scrapy.FormRequest.from_response(
                     response,
                     formdata={"text": name},
-                    callback=self.follow_court_page,
-                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                    callback=self.follow_court_page
                 )
 
     def follow_court_page(self, response):
@@ -53,8 +50,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 yield scrapy.FormRequest.from_response(
                     response,
                     formdata={"text": court_name},
-                    callback=self.follow_court_page,
-                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                    callback=self.follow_court_page
                 )
         else:
             is_court = response.css("a.business-categories-view__category::text").get()
@@ -63,8 +59,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 time.sleep(0.2)
                 yield response.follow(
                     court_page,
-                    self.parse_court_info,
-                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                    self.parse_court_info
                 )
 
     def parse_court_info(self, response):
@@ -105,8 +100,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             yield response.follow(
                 reviews_page,
                 self.parse_reviews_info,
-                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001",
-                      "court": court_data}
+                meta={"court": court_data}
             )
 
     def parse_reviews_info(self, response):
