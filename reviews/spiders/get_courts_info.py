@@ -20,7 +20,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
     def parse(self, response, **kwargs):
         # считываем названия судов
         courts_names = None
-        path = "/home/master/kozitsina/feedback-about-the-courts/reviews/data/courts_names_emails.json"
+        path = "./data/courts_names_emails.json"
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 courts_names = json.load(f)
