@@ -1,5 +1,4 @@
 import scrapy
-#from pathlib import Path
 import time
 import json
 
@@ -8,7 +7,6 @@ class GetCourtsInfoSpider(scrapy.Spider):
     name = "get_courts_info"
     allowed_domains = ["yandex.ru"]
     start_urls = ["https://yandex.ru/maps/"]
-
 
     def start_requests(self):
 
@@ -19,30 +17,31 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
             )
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         # считываем названия судов
+        courts_names = None
         try:
-            path = 'reviews/data/courts_names_emails.json'
+            path = "reviews/data/courts_names_emails.json"
             with open(path, 'r', encoding='utf-8') as f:
                 courts_names = json.load(f)
         except FileNotFoundError:
-            yield f"No such file or directory: '{path}'"
+            print("cant open file")
 
-        #names = ["Иркутский районный суд Иркутской области"]#[courts_names[0]["name"]]
         if courts_names is not None:
-             # проходимся по каждому суду
-            for court in courts_names:
-                 name = court['name']
-                 time.sleep(2.5)
+            names = [courts_names[0]]
+            # проходимся по каждому суду
+            for court in names:
+                # courts_names:
+                name = court['name']
+                time.sleep(2.5)
 
-                 # ищем суд через поиск
-                 yield scrapy.FormRequest.from_response(
-		        response,
-		        formdata={"text": name},
-		        callback=self.follow_court_page,
-		        meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
-		    )
-
+                # ищем суд через поиск
+                yield scrapy.FormRequest.from_response(
+                    response,
+                    formdata={"text": name},
+                    callback=self.follow_court_page,
+                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                )
 
     def follow_court_page(self, response):
         court_page = response.css("a.card-title-view__title-link::attr(href)").get()
@@ -59,36 +58,38 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 )
         else:
             is_court = response.css("a.business-categories-view__category::text").get()
-            # некоторые суды в яндексе могут находиться в категории "администрация"
-            if is_court == "Суд": 
+            # некоторые суды в яндексе могут находиться в категории "администрация", пропускаем их
+            if is_court == "Суд":
                 time.sleep(0.2)
                 yield response.follow(
-                    court_page, 
-                    self.parse_court_info, 
+                    court_page,
+                    self.parse_court_info,
                     meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
-                    )
-        
-    
+                )
+
     def parse_court_info(self, response):
         name = response.css("h1.orgpage-header-view__header::text").get()
         address = response.css("a.business-contacts-view__address-link::text").get()
         phone = response.css("div.orgpage-phones-view__phone-number::text").get()
-        site = response.css("span.business-urls-view__text::text").get() 
+        site = response.css("span.business-urls-view__text::text").get()
         working_hours = response.xpath("//meta[@itemprop='openingHours']/@content").getall()
-        count_of_reviews = response.css("div.tabs-select-view__title._name_reviews div.tabs-select-view__counter::text").get() 
+        count_of_reviews = response.css(
+            "div.tabs-select-view__title._name_reviews div.tabs-select-view__counter::text").get()
 
         if response.css("div.tabs-select-view__title._name_reviews div.tabs-select-view__counter::text").get() is None:
             count_of_reviews = 0
 
         # достаём тип суда из названия
         splited_type = name.split(" ")
-        if len(splited_type)<3:
+        if len(splited_type) < 3:
             court_type = None
         else:
             court_type = f"{splited_type[1]} {splited_type[2]}"
 
-        features = response.css("div.business-features-view__bool-list div.business-features-view__bool-text::text").getall()
-        yield {
+        features = response.css(
+            "div.business-features-view__bool-list div.business-features-view__bool-text::text").getall()
+
+        court_data = {
             "name": name,
             "address": address,
             "phone": phone,
@@ -97,31 +98,30 @@ class GetCourtsInfoSpider(scrapy.Spider):
             "count_of_reviews": count_of_reviews,
             "court_type": court_type,
             "features": features
-            # "reviews": reviews
         }
 
         if count_of_reviews != 0:
             reviews_page = response.css("a.tabs-select-view__label::attr(href)")[2].get()
             yield response.follow(
-                    reviews_page, 
-                    self.parse_reviews_info, 
-                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
-                )
+                reviews_page,
+                self.parse_reviews_info,
+                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001",
+                      "court": court_data}
+            )
 
-
-    
     def parse_reviews_info(self, response):
         # reviews = []
         for review in response.css("div.business-review-view__info"):
 
             text = review.css("span.business-review-view__body-text::text").get()
-            date = review.css("span.business-review-view__date meta::attr(content)").get() 
+            date = review.css("span.business-review-view__date meta::attr(content)").get()
             username = review.css("a.business-review-view__link span::text").get()
-            status = review.css("div.business-review-view__author-caption::text").get() 
+            status = review.css("div.business-review-view__author-caption::text").get()
 
-            #stars = len(review.css("span.inline-image._loaded.icon.business-rating-badge-view__star._full"))
-            
-            reactions = [review.css("div.business-reactions-view__container")[0], review.css("div.business-reactions-view__container")[1]]
+            #stars = len(review.css("span.inline-image._loaded.icon/business-rating-badge-view__star._full"))
+
+            reactions = [review.css("div.business-reactions-view__container")[0],
+                         review.css("div.business-reactions-view__container")[1]]
             likes = reactions[0].css("div.business-reactions-view__counter::text").get()
             dislikes = reactions[1].css("div.business-reactions-view__counter::text").get()
 
@@ -130,7 +130,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
             if dislikes is None:
                 dislikes = 0
 
-            yield {
+            court_data = response.meta.get('court')
+            review = {
                 "text": text,
                 "date": date,
                 "username": username,
@@ -139,3 +140,6 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 "likes": likes,
                 "dislikes": dislikes
             }
+
+            court_data.update(review)
+            yield court_data
