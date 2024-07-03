@@ -14,7 +14,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
         for url in self.start_urls:
             yield scrapy.Request(
                 url=url,
-                callback=self.parse
+                callback=self.parse,
+                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
             )
 
     def parse(self, response, **kwargs):
@@ -37,7 +38,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 yield scrapy.FormRequest.from_response(
                     response,
                     formdata={"text": name},
-                    callback=self.follow_court_page
+                    callback=self.follow_court_page,
+                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
                 )
 
     def follow_court_page(self, response):
@@ -50,7 +52,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 yield scrapy.FormRequest.from_response(
                     response,
                     formdata={"text": court_name},
-                    callback=self.follow_court_page
+                    callback=self.follow_court_page,
+                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
                 )
         else:
             is_court = response.css("a.business-categories-view__category::text").get()
@@ -59,7 +62,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 time.sleep(0.2)
                 yield response.follow(
                     court_page,
-                    self.parse_court_info
+                    self.parse_court_info,
+                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
                 )
 
     def parse_court_info(self, response):
@@ -100,7 +104,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
             yield response.follow(
                 reviews_page,
                 self.parse_reviews_info,
-                meta={"court": court_data}
+                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001",
+                      "court": court_data}
             )
 
     def parse_reviews_info(self, response):
