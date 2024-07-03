@@ -1,5 +1,5 @@
 import scrapy
-from pathlib import Path
+#from pathlib import Path
 import time
 import json
 
@@ -28,28 +28,20 @@ class GetCourtsInfoSpider(scrapy.Spider):
         except FileNotFoundError:
             yield f"No such file or directory: '{path}'"
 
-        names = ["Иркутский районный суд Иркутской области"]#[courts_names[0]["name"]]
-        # if courts_names is not None:
-        #     # проходимся по каждому суду
-        #     for court in courts_names:
-        #         name = court['name']
-        #         time.sleep(2.5)
+        #names = ["Иркутский районный суд Иркутской области"]#[courts_names[0]["name"]]
+        if courts_names is not None:
+             # проходимся по каждому суду
+            for court in courts_names:
+                 name = court['name']
+                 time.sleep(2.5)
 
-        #         # ищем суд через поиск
-        #         yield scrapy.FormRequest.from_response(
-        #             response,
-        #             formdata={"text": name},
-        #             callback=self.get_court_info,
-        #             meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
-        #         )
-        for name in names:
-            time.sleep(2.5)
-            yield scrapy.FormRequest.from_response(
-                response,
-                formdata={"text": name},
-                callback=self.follow_court_page,
-                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
-            )
+                 # ищем суд через поиск
+                 yield scrapy.FormRequest.from_response(
+		        response,
+		        formdata={"text": name},
+		        callback=self.follow_court_page,
+		        meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+		    )
 
 
     def follow_court_page(self, response):
@@ -127,7 +119,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             username = review.css("a.business-review-view__link span::text").get()
             status = review.css("div.business-review-view__author-caption::text").get() 
 
-            stars = len(review.css("span.inline-image._loaded.icon.business-rating-badge-view__star._full"))
+            #stars = len(review.css("span.inline-image._loaded.icon.business-rating-badge-view__star._full"))
             
             reactions = [review.css("div.business-reactions-view__container")[0], review.css("div.business-reactions-view__container")[1]]
             likes = reactions[0].css("div.business-reactions-view__counter::text").get()
@@ -143,7 +135,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 "date": date,
                 "username": username,
                 "status": status,
-                "stars": stars,
+                #"stars": stars,
                 "likes": likes,
                 "dislikes": dislikes
             }
