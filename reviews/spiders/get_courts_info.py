@@ -30,7 +30,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
 
         if courts_names is not None:
             # проходимся по каждому суду
-            for court in [courts_names[0]]:
+            #for court in [courts_names[0]]:
+            for court in courts_names:
                 name = court['name']
                 time.sleep(2.5)
 
