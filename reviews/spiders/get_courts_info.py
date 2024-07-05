@@ -15,7 +15,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             yield scrapy.Request(
                 url=url,
                 callback=self.parse,
-                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
             )
 
     def parse(self, response, **kwargs):
@@ -30,7 +30,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
 
         if courts_names is not None:
             # проходимся по каждому суду
-            for court in courts_names:
+            for court in [courts_names[0]]:
                 name = court['name']
                 time.sleep(2.5)
 
@@ -39,7 +39,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
                     response,
                     formdata={"text": name},
                     callback=self.follow_court_page,
-                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                    meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
                 )
 
     def follow_court_page(self, response):
@@ -53,7 +53,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
                     response,
                     formdata={"text": court_name},
                     callback=self.follow_court_page,
-                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                    meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
                 )
         else:
             is_court = response.css("a.business-categories-view__category::text").get()
@@ -63,7 +63,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 yield response.follow(
                     court_page,
                     self.parse_court_info,
-                    meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001"}
+                    meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
                 )
 
     def parse_court_info(self, response):
@@ -94,7 +94,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             "phone": phone,
             "working_hours": working_hours,
             "site": site,
-            "count_of_reviews": count_of_reviews,
+            "count_of_reviews": int(count_of_reviews),
             "court_type": court_type,
             "features": features
         }
@@ -104,7 +104,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             yield response.follow(
                 reviews_page,
                 self.parse_reviews_info,
-                meta={"proxy": "http://1c8cc108f81a3ae2349ddcf47ae22d1ba5563f2a:@proxy.zenrows.com:8001",
+                meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001",
                       "court": court_data}
             )
 
@@ -117,7 +117,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
             username = review.css("a.business-review-view__link span::text").get()
             status = review.css("div.business-review-view__author-caption::text").get()
 
-            #stars = len(review.css("span.inline-image._loaded.icon/business-rating-badge-view__star._full"))
+            stars = len(review.css("div.business-rating-badge-view__stars "
+                                   "span.inline-image.icon.business-rating-badge-view__star._full"))
 
             reactions = [review.css("div.business-reactions-view__container")[0],
                          review.css("div.business-reactions-view__container")[1]]
@@ -135,9 +136,9 @@ class GetCourtsInfoSpider(scrapy.Spider):
                 "date": date,
                 "username": username,
                 "status": status,
-                #"stars": stars,
-                "likes": likes,
-                "dislikes": dislikes
+                "stars": stars,
+                "likes": int(likes),
+                "dislikes": int(dislikes)
             }
 
             court_data.update(review)
