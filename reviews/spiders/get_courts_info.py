@@ -1,7 +1,6 @@
 import scrapy
 import time
 import json
-import os
 
 
 class GetCourtsInfoSpider(scrapy.Spider):
@@ -9,13 +8,16 @@ class GetCourtsInfoSpider(scrapy.Spider):
     allowed_domains = ["yandex.ru"]
     start_urls = ["https://yandex.ru/maps/"]
 
+    def __init__(self):
+        self.proxy = "YOUR PROXY"
+
     def start_requests(self):
 
         for url in self.start_urls:
             yield scrapy.Request(
                 url=url,
                 callback=self.parse,
-                meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
+                meta={"proxy": self.proxy}
             )
 
     def parse(self, response, **kwargs):
@@ -30,17 +32,19 @@ class GetCourtsInfoSpider(scrapy.Spider):
 
         if courts_names is not None:
             # проходимся по каждому суду
-            #for court in [courts_names[0]]:
+            # for court in [courts_names[0]]:
             for court in courts_names:
                 name = court['name']
-                time.sleep(2.5)
+                time.sleep(2)
 
                 # ищем суд через поиск
                 yield scrapy.FormRequest.from_response(
                     response,
                     formdata={"text": name},
                     callback=self.follow_court_page,
-                    meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
+                    meta={
+                        "proxy": self.proxy,
+                        "name": name}
                 )
 
     def follow_court_page(self, response):
@@ -49,26 +53,33 @@ class GetCourtsInfoSpider(scrapy.Spider):
             court_name = response.css("div.search-business-snippet-view__title::text").get()
             if court_name is not None:
                 # повторный запрос с названием из предложенного списка поиска
-                time.sleep(2.5)
+                time.sleep(1.5)
                 yield scrapy.FormRequest.from_response(
                     response,
                     formdata={"text": court_name},
                     callback=self.follow_court_page,
-                    meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
+                    meta={
+                        "proxy": self.proxy,
+                        "name": response.meta.get("name")
+                        }
                 )
         else:
             is_court = response.css("a.business-categories-view__category::text").get()
             # некоторые суды в яндексе могут находиться в категории "администрация", пропускаем их
             if is_court == "Суд":
-                time.sleep(0.2)
+                time.sleep(2)
                 yield response.follow(
                     court_page,
                     self.parse_court_info,
-                    meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001"}
+                    meta={
+                        "proxy": self.proxy,
+                        "name": response.meta.get("name")
+                        }
                 )
 
     def parse_court_info(self, response):
-        name = response.css("h1.orgpage-header-view__header::text").get()
+        name = response.meta.get("name")
+        name_yandex = response.css("h1.orgpage-header-view__header::text").get()
         address = response.css("a.business-contacts-view__address-link::text").get()
         phone = response.css("div.orgpage-phones-view__phone-number::text").get()
         site = response.css("span.business-urls-view__text::text").get()
@@ -81,8 +92,8 @@ class GetCourtsInfoSpider(scrapy.Spider):
 
         # достаём тип суда из названия
         splited_type = name.split(" ")
-        if len(splited_type) < 3:
-            court_type = None
+        if splited_type[1]== "суд":
+             court_type = f"{splited_type[0].lower()} {splited_type[1]}"
         else:
             court_type = f"{splited_type[1]} {splited_type[2]}"
 
@@ -91,6 +102,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
 
         court_data = {
             "name": name,
+            "name_yandex": name_yandex,
             "address": address,
             "phone": phone,
             "working_hours": working_hours,
@@ -105,12 +117,13 @@ class GetCourtsInfoSpider(scrapy.Spider):
             yield response.follow(
                 reviews_page,
                 self.parse_reviews_info,
-                meta={"proxy": "https://scraperapi.device_type=desktop:d0d30611dbf7ec9fa06576d1427c0417@proxy-server.scraperapi.com:8001",
+                meta={"proxy": self.proxy,
                       "court": court_data}
             )
 
     def parse_reviews_info(self, response):
-        # reviews = []
+        time.sleep(1.5)
+
         for review in response.css("div.business-review-view__info"):
 
             text = review.css("span.business-review-view__body-text::text").get()
