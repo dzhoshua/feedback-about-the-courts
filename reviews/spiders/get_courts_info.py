@@ -1,6 +1,8 @@
 import scrapy
 import time
 import json
+import random
+import math
 
 
 class GetCourtsInfoSpider(scrapy.Spider):
@@ -35,7 +37,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             # for court in [courts_names[0]]:
             for court in courts_names:
                 name = court['name']
-                time.sleep(2)
+                time.sleep(round(random.uniform(1, 3), 2))
 
                 # ищем суд через поиск
                 yield scrapy.FormRequest.from_response(
@@ -53,7 +55,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             court_name = response.css("div.search-business-snippet-view__title::text").get()
             if court_name is not None:
                 # повторный запрос с названием из предложенного списка поиска
-                time.sleep(1.5)
+                time.sleep(round(random.uniform(1, 3), 2))
                 yield scrapy.FormRequest.from_response(
                     response,
                     formdata={"text": court_name},
@@ -67,7 +69,7 @@ class GetCourtsInfoSpider(scrapy.Spider):
             is_court = response.css("a.business-categories-view__category::text").get()
             # некоторые суды в яндексе могут находиться в категории "администрация", пропускаем их
             if is_court == "Суд":
-                time.sleep(2)
+                time.sleep(round(random.uniform(1, 3), 2))
                 yield response.follow(
                     court_page,
                     self.parse_court_info,
@@ -112,17 +114,31 @@ class GetCourtsInfoSpider(scrapy.Spider):
             "features": features
         }
 
+        time.sleep(round(random.uniform(1, 3), 2))
         if count_of_reviews != 0:
             reviews_page = response.css("a.tabs-select-view__label::attr(href)")[2].get()
-            yield response.follow(
-                reviews_page,
-                self.parse_reviews_info,
-                meta={"proxy": self.proxy,
-                      "court": court_data}
-            )
+            # пагинация для сбора отзывов, если их больше 50
+            if count_of_reviews > 50:
+                reviews_page += "?page=%s"
+                count_of_pages = math.ceil(count_of_reviews/50)
+                
+                for num_page in range(1, count_of_pages+1):
+                    yield response.follow(
+                        reviews_page % num_page,
+                        self.parse_reviews_info,
+                        meta={"proxy": self.proxy,
+                            "court": court_data}
+                    )
+            else:
+                yield response.follow(
+                    reviews_page,
+                    self.parse_reviews_info,
+                    meta={"proxy": self.proxy,
+                        "court": court_data}
+                )
 
     def parse_reviews_info(self, response):
-        time.sleep(1.5)
+        time.sleep(round(random.uniform(1, 3), 2))
 
         for review in response.css("div.business-review-view__info"):
 
